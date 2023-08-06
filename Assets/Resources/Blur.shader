@@ -19,7 +19,17 @@ Shader "PostProcessing/Blur"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #define E 2.71828f
 
-        sampler2D _MainTex;
+        Texture2D _MainTex;
+        SamplerState sampler_MainTex;
+
+        Texture2D _FirstBlurTex;
+        SamplerState sampler_FirstBlurTex;
+
+        Texture2D _SecondBlurTex;
+        SamplerState sampler_SecondBlurTex;
+
+        Texture2D _H;
+        SamplerState sampler_H;
 
         CBUFFER_START(UnityPerMaterial)
             float4 _MainTex_TexelSize;
@@ -76,7 +86,7 @@ Shader "PostProcessing/Blur"
                     float gauss = gaussian(x);
                     gridSum += gauss;
                     float2 uv = i.uv + float2(_MainTex_TexelSize.x * x, 0.0f);
-                    col += gauss * tex2D(_MainTex, uv).xyz;
+                    col += gauss * _MainTex.Sample(sampler_MainTex, uv).rgb;
                 }
 
                 col /= gridSum;
@@ -107,11 +117,45 @@ Shader "PostProcessing/Blur"
                     float gauss = gaussian(y);
                     gridSum += gauss;
                     float2 uv = i.uv + float2(0.0f, _MainTex_TexelSize.y * y);
-                    col += gauss * tex2D(_MainTex, uv).xyz;
+                    col += gauss * _MainTex.Sample(sampler_MainTex, uv).rgb;
                 }
 
                 col /= gridSum;
                 return float4(col, 1.0f);
+            }
+
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "Subtraction"
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag_subtraction
+
+            float4 frag_subtraction (v2f i) : SV_Target
+            {
+                float3 colFirst = _FirstBlurTex.Sample(sampler_FirstBlurTex, i.uv).rgb;
+                float3 colSecond = _SecondBlurTex.Sample(sampler_SecondBlurTex, i.uv).rgb;
+                float3 hatch = _H.Sample(sampler_H, i.uv).rgb;
+
+                float3 result = colSecond - colFirst;
+
+                if((result.r + result.g + result.b) * 20.0f < 0.1f){
+                    // calculate the brightness of the resulting color
+                    float brightness = (colFirst.r + colFirst.g + colFirst.b) * 0.5f;
+                    // interpolate between white and black based on brightness
+                    float3 color = lerp(colFirst / 0.1f, float3(0, 0, 0), 1.1f - brightness);
+
+                    return float4(color, 1.0f);
+
+                    
+                }else{
+                    return float4(0.0f, 0.0f, 0.0f, 1.0f);
+                }
+
             }
 
             ENDHLSL

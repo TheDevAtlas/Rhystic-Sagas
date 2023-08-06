@@ -11,6 +11,8 @@ public class BlurSettings : VolumeComponent, IPostProcessComponent
     public ClampedFloatParameter strength = new ClampedFloatParameter(0.0f, 0.0f, 15.0f);
     [Tooltip("Standard Deviation (spread) of the blur. Grid size is approx. 3x larger.")]
     public ClampedFloatParameter second = new ClampedFloatParameter(0.0f, 0.0f, 15.0f);
+    [Tooltip("Your tooltip description here.")]
+    public TextureParameter hatch = new TextureParameter(null);
 
 
     public bool IsActive()

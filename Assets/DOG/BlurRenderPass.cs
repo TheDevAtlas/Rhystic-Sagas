@@ -15,6 +15,15 @@ public class BlurRenderPass : ScriptableRenderPass
     RenderTargetHandle blurTex;
     int blurTexID;
 
+    RenderTargetHandle blurTex2;
+    int blurTexID2;
+
+    RenderTargetHandle firstOut;
+    int firstOutID;
+
+    RenderTargetHandle secondOut;
+    int secondOutID;
+
     public bool Setup(ScriptableRenderer renderer)
     {
         source = renderer.cameraColorTarget;
@@ -42,6 +51,21 @@ public class BlurRenderPass : ScriptableRenderPass
         blurTex.id = blurTexID;
         cmd.GetTemporaryRT(blurTex.id, cameraTextureDescriptor);
 
+        blurTexID2 = Shader.PropertyToID("_BlurTex2");
+        blurTex2 = new RenderTargetHandle();
+        blurTex2.id = blurTexID2;
+        cmd.GetTemporaryRT(blurTex2.id, cameraTextureDescriptor);
+
+        firstOutID = Shader.PropertyToID("_BlurTex3");
+        firstOut = new RenderTargetHandle();
+        firstOut.id = firstOutID;
+        cmd.GetTemporaryRT(firstOut.id, cameraTextureDescriptor);
+
+        secondOutID = Shader.PropertyToID("_BlurTex4");
+        secondOut = new RenderTargetHandle();
+        secondOut.id = secondOutID;
+        cmd.GetTemporaryRT(secondOut.id, cameraTextureDescriptor);
+
         base.Configure(cmd, cameraTextureDescriptor);
     }
 
@@ -66,11 +90,18 @@ public class BlurRenderPass : ScriptableRenderPass
         // First Blur
         material.SetFloat("_Spread", (float)blurSettings.strength.value);
         cmd.Blit(source, blurTex.id, material, 0);
-        cmd.Blit(blurTex.id, source, material, 1);
+        cmd.Blit(blurTex.id, firstOut.id, material, 1);
 
-        material.SetFloat("_Spread", (float)blurSettings.strength.value * (float)blurSettings.second.value);
-        cmd.Blit(source, blurTex.id, material, 0);
-        cmd.Blit(blurTex.id, source, material, 1);
+        // Second Blur
+        material.SetFloat("_Spread", (float)blurSettings.second.value);
+        cmd.Blit(firstOut.id, blurTex2.id, material, 0);
+        cmd.Blit(blurTex2.id, secondOut.id, material, 1);
+
+        // Subtract Second Blur From First Blur //
+        cmd.SetGlobalTexture("_FirstBlurTex", firstOut.id);
+        cmd.SetGlobalTexture("_SecondBlurTex", secondOut.id);
+        material.SetTexture("_H", blurSettings.hatch.value);
+        cmd.Blit(source, source, material, 2);
 
         context.ExecuteCommandBuffer(cmd);
 
@@ -82,6 +113,9 @@ public class BlurRenderPass : ScriptableRenderPass
     public override void FrameCleanup(CommandBuffer cmd)
     {
         cmd.ReleaseTemporaryRT(blurTexID);
+        cmd.ReleaseTemporaryRT(blurTexID2);
+        cmd.ReleaseTemporaryRT(firstOutID);
+        cmd.ReleaseTemporaryRT(secondOutID);
         base.FrameCleanup(cmd);
     }
 }

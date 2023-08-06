@@ -39,7 +39,6 @@ public class CarController : MonoBehaviour
             if (Physics.Raycast(w.position, -w.up, out hit, suspensionHeight, groundLayer))
             {
                 float suspensionForce = (1 - (hit.distance / suspensionHeight)) * maxSuspensionForce;
-                print("Force: " + Vector3.up * suspensionForce);
                 rb.AddForceAtPosition(Vector3.up * suspensionForce, w.position);
             }
         }
